@@ -109,6 +109,61 @@ USBD_ClassTypeDef USBD_Pybricks_ClassDriver =
     .GetFSConfigDescriptor = USBD_Pybricks_GetCfgDesc,
 };
 
+// MS OS 2.0 Descriptor Set — returned for vendor request bRequest=0x20, wIndex=0x0007.
+// Assigns WinUSB compatible ID to interface 1 (bulk data, 0xFF/0xC5/0xF6) so Chrome on
+// Windows can claimInterface without Zadig.  Size must match wMSOSDescriptorSetTotalLength
+// in USBD_BOSDescriptor (usbd_desc.c): 46 bytes = 0x2E.
+static uint8_t USBD_MSOS20_DescriptorSet[] = {
+    // MS OS 2.0 Descriptor Set Header (10 bytes)
+    0x0A, 0x00,              // wLength
+    0x00, 0x00,              // wDescriptorType = MS_OS_20_SET_HEADER_DESCRIPTOR
+    0x00, 0x00, 0x03, 0x06,  // dwWindowsVersion = 0x06030000 (Windows 8.1+)
+    0xB2, 0x00,              // wTotalLength = 178
+
+    // MS OS 2.0 Configuration Subset Header (8 bytes)
+    0x08, 0x00,              // wLength
+    0x01, 0x00,              // wDescriptorType = MS_OS_20_SUBSET_HEADER_CONFIGURATION
+    0x00,                    // bConfigurationValue (0 = configuration 1)
+    0x00,                    // bReserved
+    0xA8, 0x00,              // wTotalLength = 168
+
+    // MS OS 2.0 Function Subset Header (8 bytes)
+    0x08, 0x00,              // wLength
+    0x02, 0x00,              // wDescriptorType = MS_OS_20_SUBSET_HEADER_FUNCTION
+    0x00,                    // bFirstInterface = 0 — matches IAD.bFirstInterface
+    0x00,                    // bReserved
+    0xA0, 0x00,              // wSubsetLength = 160
+
+    // MS OS 2.0 Compatible ID Descriptor (20 bytes)
+    0x14, 0x00,              // wLength
+    0x03, 0x00,              // wDescriptorType = MS_OS_20_FEATURE_COMPATIBLE_ID
+    'W', 'I', 'N', 'U', 'S', 'B', 0x00, 0x00,  // CompatibleID = "WINUSB"
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,  // SubCompatibleID
+
+    // MS OS 2.0 Registry Property Descriptor (132 bytes)
+    // Causes Windows to write DeviceInterfaceGUIDs to the registry on driver install,
+    // so Chrome can find the WinUSB device interface path for claimInterface.
+    0x84, 0x00,              // wLength = 132
+    0x04, 0x00,              // wDescriptorType = MS_OS_20_FEATURE_REG_PROPERTY
+    0x07, 0x00,              // wPropertyDataType = REG_MULTI_SZ
+    0x2A, 0x00,              // wPropertyNameLength = 42 (20 chars × 2 + 2 null)
+    // PropertyName = "DeviceInterfaceGUIDs" (UTF-16LE, 42 bytes incl. null terminator)
+    'D',0x00,'e',0x00,'v',0x00,'i',0x00,'c',0x00,'e',0x00,
+    'I',0x00,'n',0x00,'t',0x00,'e',0x00,'r',0x00,'f',0x00,
+    'a',0x00,'c',0x00,'e',0x00,'G',0x00,'U',0x00,'I',0x00,
+    'D',0x00,'s',0x00,
+    0x00, 0x00,              // null terminator of PropertyName
+    0x50, 0x00,              // wPropertyDataLength = 80
+    // PropertyData = "{82ED08B2-372A-4C39-A5BD-5B0DEACF04E5}\0\0" (UTF-16LE, 80 bytes)
+    '{',0x00,'8',0x00,'2',0x00,'E',0x00,'D',0x00,'0',0x00,'8',0x00,'B',0x00,
+    '2',0x00,'-',0x00,'3',0x00,'7',0x00,'2',0x00,'A',0x00,'-',0x00,'4',0x00,
+    'C',0x00,'3',0x00,'9',0x00,'-',0x00,'A',0x00,'5',0x00,'B',0x00,'D',0x00,
+    '-',0x00,'5',0x00,'B',0x00,'0',0x00,'D',0x00,'E',0x00,'A',0x00,'C',0x00,
+    'F',0x00,'0',0x00,'4',0x00,'E',0x00,'5',0x00,'}',0x00,
+    0x00, 0x00,              // null terminator (end of GUID string)
+    0x00, 0x00,              // REG_MULTI_SZ list terminator
+};
+
 /* USB Pybricks device Configuration Descriptor */
 typedef struct PBDRV_PACKED {
     pbdrv_usb_conf_desc_t conf_desc;
@@ -137,28 +192,28 @@ static pbdrv_usb_stm32_conf_union_t USBD_Pybricks_CfgDesc = {
             .bmAttributes = USB_CONF_DESC_BM_ATTR_MUST_BE_SET,
             .bMaxPower = 250,   /* 500mA (number of 2mA units) */
         },
-        /* Interface Association: groups the comm and data interfaces into one
-         * CDC ACM function. */
+        /* Interface Association: vendor-specific to prevent Windows/ChromeOS
+         * from loading usbser.sys / CDC driver, which would block WebUSB. */
         .iad = {
             .bLength = sizeof(pbdrv_usb_iad_desc_t),
             .bDescriptorType = DESC_TYPE_INTERFACE_ASSOCIATION,
             .bFirstInterface = 0,
             .bInterfaceCount = 2,
-            .bFunctionClass = USB_CLASS_CDC,
-            .bFunctionSubClass = USB_CDC_SUBCLASS_ACM,
-            .bFunctionProtocol = USB_CDC_PROTOCOL_AT,
+            .bFunctionClass = 0xFF,
+            .bFunctionSubClass = 0x00,
+            .bFunctionProtocol = 0x00,
             .iFunction = 0,
         },
-        /* Communication interface */
+        /* Communication interface — vendor-specific (0xFF) so no OS driver claims it. */
         .comm_iface = {
             .bLength = sizeof(pbdrv_usb_iface_desc_t),
             .bDescriptorType = DESC_TYPE_INTERFACE,
             .bInterfaceNumber = 0,
             .bAlternateSetting = 0,
             .bNumEndpoints = 1,
-            .bInterfaceClass = USB_CLASS_CDC,
-            .bInterfaceSubClass = USB_CDC_SUBCLASS_ACM,
-            .bInterfaceProtocol = USB_CDC_PROTOCOL_AT,
+            .bInterfaceClass = 0xFF,
+            .bInterfaceSubClass = 0x00,
+            .bInterfaceProtocol = 0x00,
             .iInterface = 0,
         },
         .cdc_header = {
@@ -195,16 +250,18 @@ static pbdrv_usb_stm32_conf_union_t USBD_Pybricks_CfgDesc = {
             .wMaxPacketSize = USBD_PYBRICKS_CMD_PACKET_SIZE,
             .bInterval = 16,
         },
-        /* Data interface */
+        /* Data interface — vendor-specific (0xFF/0xC5/0xF6) so Windows/ChromeOS
+         * do not load usbser.sys and WebUSB can claim the interface freely.
+         * 0xF6 distinguishes new hub (H562) from old hub (Pybricks 3.x: 0xF5). */
         .data_iface = {
             .bLength = sizeof(pbdrv_usb_iface_desc_t),
             .bDescriptorType = DESC_TYPE_INTERFACE,
             .bInterfaceNumber = 1,
             .bAlternateSetting = 0,
             .bNumEndpoints = 2,
-            .bInterfaceClass = USB_CLASS_CDC_DATA,
-            .bInterfaceSubClass = 0,
-            .bInterfaceProtocol = 0,
+            .bInterfaceClass = 0xFF,
+            .bInterfaceSubClass = 0xC5,
+            .bInterfaceProtocol = 0xF6,
             .iInterface = 0,
         },
         .ep_out = {
@@ -400,6 +457,19 @@ static USBD_StatusTypeDef USBD_Pybricks_Setup(USBD_HandleTypeDef *pdev,
                     USBD_CtlError(pdev, req);
                     ret = USBD_FAIL;
                     break;
+            }
+            break;
+
+        case USB_REQ_TYPE_VENDOR:
+            // MS OS 2.0 Descriptor Set request: bRequest=0x20, wIndex=0x0007
+            if ((req->bmRequest & 0x80U) != 0U &&
+                req->bRequest == 0x20U &&
+                req->wIndex == 0x0007U) {
+                uint16_t len = MIN((uint16_t)sizeof(USBD_MSOS20_DescriptorSet), req->wLength);
+                (void)USBD_CtlSendData(pdev, USBD_MSOS20_DescriptorSet, len);
+            } else {
+                USBD_CtlError(pdev, req);
+                ret = USBD_FAIL;
             }
             break;
 
