@@ -43,15 +43,16 @@
 pbio_light_matrix_t *pbsys_hub_light_matrix;
 
 /**
- * Displays the idle UI. Has a square stop sign and selected slot on bottom row.
+ * Displays the idle UI. Shows "R" logo on the 5x5 matrix.
  *
  * @param brightness   Brightness (0--100%).
  */
 static void light_matrix_show_idle_ui(uint8_t brightness) {
+    // "R" pattern: each byte is a row bitmask, bit4=col0 .. bit0=col4
+    static const uint8_t R_PATTERN[5] = {0x1E, 0x11, 0x1E, 0x14, 0x12};
     for (uint8_t r = 0; r < PBSYS_CONFIG_HMI_NUM_SLOTS; r++) {
         for (uint8_t c = 0; c < PBSYS_CONFIG_HMI_NUM_SLOTS; c++) {
-            bool is_on = r < 3 && c > 0 && c < 4;
-            is_on |= (r == 4 && c == pbsys_status_get_selected_slot());
+            bool is_on = (R_PATTERN[r] >> (4 - c)) & 1;
             pbio_light_matrix_set_pixel(pbsys_hub_light_matrix, r, c, is_on ? brightness : 0, true);
         }
     }
@@ -113,8 +114,12 @@ static uint32_t pbio_light_matrix_5x5_spinner_animation_next(pbio_light_animatio
 }
 
 static void light_matrix_start_run_animation(void) {
-    // Central pixel in spinner is off and will not be updated.
-    pbio_light_matrix_set_pixel(pbsys_hub_light_matrix, 1, 2, 0, true);
+    // Clear entire matrix so the idle "R" doesn't show through spinner gaps.
+    for (uint8_t r = 0; r < 5; r++) {
+        for (uint8_t c = 0; c < 5; c++) {
+            pbio_light_matrix_set_pixel(pbsys_hub_light_matrix, r, c, 0, true);
+        }
+    }
     pbio_light_animation_init(&pbsys_hub_light_matrix->animation, pbio_light_matrix_5x5_spinner_animation_next);
     pbio_light_animation_start(&pbsys_hub_light_matrix->animation);
 }

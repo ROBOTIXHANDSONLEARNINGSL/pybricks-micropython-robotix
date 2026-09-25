@@ -13,7 +13,7 @@
 #define PBSYS_CONFIG_HMI_NUM_SLOTS                  (5)
 #define PBSYS_CONFIG_HMI_PUP                        (1)
 #define PBSYS_CONFIG_HMI_PUP_LIGHT_MATRIX_INDEX     (0)
-#define PBSYS_CONFIG_HMI_PUP_BLUETOOTH_BUTTON       (1 << 9) // right up
+#define PBSYS_CONFIG_HMI_PUP_BLUETOOTH_BUTTON       (1 << 9) // right up (BLE button)
 #define PBSYS_CONFIG_HMI_PUP_LEFT_RIGHT_ENABLE      (1)
 #define PBSYS_CONFIG_HUB_LIGHT_MATRIX               (1)
 #define PBSYS_CONFIG_HUB_LIGHT_MATRIX_LED_ARRAY     (1)
@@ -26,7 +26,7 @@
 #define PBSYS_CONFIG_STORAGE_USER_DATA_SIZE         (512)
 #define PBSYS_CONFIG_STATUS_LIGHT                   (1)
 #define PBSYS_CONFIG_STATUS_LIGHT_BATTERY           (1)
-#define PBSYS_CONFIG_STATUS_LIGHT_BLUETOOTH         (1)
+#define PBSYS_CONFIG_STATUS_LIGHT_BLUETOOTH         (0)
 #define PBSYS_CONFIG_STATUS_LIGHT_STATE_ANIMATIONS  (0)
 #define PBSYS_CONFIG_USER_PROGRAM                   (1)
 #define PBSYS_CONFIG_TELEMETRY                      (1)
