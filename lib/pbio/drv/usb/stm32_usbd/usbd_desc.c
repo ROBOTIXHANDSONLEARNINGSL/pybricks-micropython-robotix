@@ -82,7 +82,7 @@ pbdrv_usb_dev_desc_union_t USBD_DeviceDesc = {
     .s = {
         .bLength = sizeof(pbdrv_usb_dev_desc_t),
         .bDescriptorType = DESC_TYPE_DEVICE,
-        .bcdUSB = 0x0200,       /* 2.0.0 */
+        .bcdUSB = 0x0210,       /* 2.1.0 — required for BOS descriptor */
         .bDeviceClass = USB_CLASS_MISC,
         .bDeviceSubClass = USB_MISC_SUBCLASS_COMMON,
         .bDeviceProtocol = USB_MISC_PROTOCOL_IAD,
@@ -222,13 +222,47 @@ static uint8_t *USBD_Pybricks_SerialStrDescriptor(USBD_SpeedTypeDef speed, uint1
     return (uint8_t *)USBD_StringSerial;
 }
 
+// BOS + MS OS 2.0 Platform Capability — tells Windows to load WinUSB for interface 1
+// without Zadig or a manual .inf file (Chrome WebUSB on Windows requires this).
+//
+// BOS header (5) + Platform capability descriptor (28) = 33 bytes total.
+// The wMSOSDescriptorSetTotalLength (0x2E = 46) must match USBD_MSOS20_DescriptorSet
+// in usbd_pybricks.c.  bMS_VendorCode = 0x20.
+__ALIGN_BEGIN static uint8_t USBD_BOSDescriptor[] __ALIGN_END = {
+    // BOS Descriptor Header
+    0x05,         // bLength
+    0x0F,         // bDescriptorType = BOS
+    0x21, 0x00,   // wTotalLength = 33
+    0x01,         // bNumDeviceCaps = 1
+
+    // MS OS 2.0 Platform Capability Descriptor (28 bytes)
+    0x1C,         // bLength = 28
+    0x10,         // bDescriptorType = Device Capability
+    0x05,         // bDevCapabilityType = Platform
+    0x00,         // bReserved
+    // PlatformCapabilityUUID = {D8DD60DF-4589-4CC7-9CD2-659D9E648A9F}
+    0xDF, 0x60, 0xDD, 0xD8, 0x89, 0x45, 0xC7, 0x4C,
+    0x9C, 0xD2, 0x65, 0x9D, 0x9E, 0x64, 0x8A, 0x9F,
+    // Capability data
+    0x00, 0x00, 0x03, 0x06,  // dwWindowsVersion = 0x06030000 (Windows 8.1+)
+    0xB2, 0x00,              // wMSOSDescriptorSetTotalLength = 178
+    0x20,                    // bMS_VendorCode
+    0x00,                    // bAltEnumCode
+};
+
+static uint8_t *USBD_Pybricks_GetBOSDescriptor(USBD_SpeedTypeDef speed, uint16_t *length) {
+    UNUSED(speed);
+    *length = (uint16_t)sizeof(USBD_BOSDescriptor);
+    return USBD_BOSDescriptor;
+}
+
 USBD_DescriptorsTypeDef USBD_Pybricks_Desc = {
     .GetDeviceDescriptor = USBD_Pybricks_DeviceDescriptor,
     .GetLangIDStrDescriptor = USBD_Pybricks_LangIDStrDescriptor,
     .GetManufacturerStrDescriptor = USBD_Pybricks_ManufacturerStrDescriptor,
     .GetProductStrDescriptor = USBD_Pybricks_ProductStrDescriptor,
     .GetSerialStrDescriptor = USBD_Pybricks_SerialStrDescriptor,
-    .GetBOSDescriptor = NULL,
+    .GetBOSDescriptor = USBD_Pybricks_GetBOSDescriptor,
 };
 
 void USBD_Pybricks_Desc_Init(void) {
