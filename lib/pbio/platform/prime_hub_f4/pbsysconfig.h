@@ -33,4 +33,6 @@
 #define PBSYS_CONFIG_PROGRAM_STOP                   (1)
 
 // F4 has less RAM than H5 — cap color map to 8 to avoid overflow
+#undef PBIO_COLOR_MAP_NUM_COLORS
 #define PBIO_COLOR_MAP_NUM_COLORS                   (8)
+
