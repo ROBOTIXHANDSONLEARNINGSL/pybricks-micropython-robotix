@@ -19,7 +19,9 @@
 #include <pbio/error.h>
 
 /** Maximum number of colors that a color map can hold. */
+#ifndef PBIO_COLOR_MAP_NUM_COLORS
 #define PBIO_COLOR_MAP_NUM_COLORS (9)
+#endif
 
 /** The set of colors that a sensor should detect. */
 typedef struct {
