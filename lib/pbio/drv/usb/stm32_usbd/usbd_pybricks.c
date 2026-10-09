@@ -113,7 +113,7 @@ USBD_ClassTypeDef USBD_Pybricks_ClassDriver =
 // Assigns WinUSB compatible ID to interface 1 (bulk data, 0xFF/0xC5/0xF6) so Chrome on
 // Windows can claimInterface without Zadig.  Size must match wMSOSDescriptorSetTotalLength
 // in USBD_BOSDescriptor (usbd_desc.c): 46 bytes = 0x2E.
-static uint8_t USBD_MSOS20_DescriptorSet[] = {
+static const uint8_t USBD_MSOS20_DescriptorSet[] = {
     // MS OS 2.0 Descriptor Set Header (10 bytes)
     0x0A, 0x00,              // wLength
     0x00, 0x00,              // wDescriptorType = MS_OS_20_SET_HEADER_DESCRIPTOR
@@ -466,7 +466,7 @@ static USBD_StatusTypeDef USBD_Pybricks_Setup(USBD_HandleTypeDef *pdev,
                 req->bRequest == 0x20U &&
                 req->wIndex == 0x0007U) {
                 uint16_t len = MIN((uint16_t)sizeof(USBD_MSOS20_DescriptorSet), req->wLength);
-                (void)USBD_CtlSendData(pdev, USBD_MSOS20_DescriptorSet, len);
+                (void)USBD_CtlSendData(pdev, (uint8_t *)USBD_MSOS20_DescriptorSet, len);
             } else {
                 USBD_CtlError(pdev, req);
                 ret = USBD_FAIL;

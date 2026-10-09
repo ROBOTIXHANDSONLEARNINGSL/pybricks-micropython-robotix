@@ -228,7 +228,7 @@ static uint8_t *USBD_Pybricks_SerialStrDescriptor(USBD_SpeedTypeDef speed, uint1
 // BOS header (5) + Platform capability descriptor (28) = 33 bytes total.
 // The wMSOSDescriptorSetTotalLength (0x2E = 46) must match USBD_MSOS20_DescriptorSet
 // in usbd_pybricks.c.  bMS_VendorCode = 0x20.
-__ALIGN_BEGIN static uint8_t USBD_BOSDescriptor[] __ALIGN_END = {
+__ALIGN_BEGIN static const uint8_t USBD_BOSDescriptor[] __ALIGN_END = {
     // BOS Descriptor Header
     0x05,         // bLength
     0x0F,         // bDescriptorType = BOS
@@ -253,7 +253,7 @@ __ALIGN_BEGIN static uint8_t USBD_BOSDescriptor[] __ALIGN_END = {
 static uint8_t *USBD_Pybricks_GetBOSDescriptor(USBD_SpeedTypeDef speed, uint16_t *length) {
     UNUSED(speed);
     *length = (uint16_t)sizeof(USBD_BOSDescriptor);
-    return USBD_BOSDescriptor;
+    return (uint8_t *)USBD_BOSDescriptor;
 }
 
 USBD_DescriptorsTypeDef USBD_Pybricks_Desc = {
